@@ -3,9 +3,12 @@ import { NextRequest } from 'next/server'
 import { api } from "../../../../convex/_generated/api"
 import { ConvexHttpClient } from 'convex/browser'
 
-const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
+
+export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
+    
   try {
+    const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
     const evt = await verifyWebhook(req)
 
     // Do something with payload
