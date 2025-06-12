@@ -1,36 +1,41 @@
-import { verifyWebhook } from '@clerk/nextjs/webhooks'
-import { NextRequest } from 'next/server'
-import { api } from "../../../../convex/_generated/api"
-import { ConvexHttpClient } from 'convex/browser'
-
+import { verifyWebhook } from '@clerk/nextjs/webhooks';
+import { NextRequest } from 'next/server';
+import { api } from '../../../../convex/_generated/api';
+import { ConvexHttpClient } from 'convex/browser';
+import type { UserJSON } from '@clerk/backend';
 
 export const dynamic = 'force-dynamic';
-export async function POST(req: NextRequest) {
-    
-  try {
-    const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
-    const evt = await verifyWebhook(req)
 
-    // Do something with payload
-    // For this guide, log payload to console
-    const { id } = evt.data
-    const eventType = evt.type
-    console.log(`Received webhook with ID ${id} and event type of ${eventType}`)
-    console.log('Webhook payload:', evt.data)
+export async function POST(req: NextRequest) {
+  try {
+    if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
+      throw new Error('Missing Convex URL');
+    }
+
+    const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL);
+    const evt = await verifyWebhook(req);
+
+    console.log(`Webhook received: ${evt.type}`);
+    console.log('Payload:', evt.data);
+
     if (evt.type === 'user.created') {
-      const clerkId = evt.data.id;
-      const email = evt.data.email_addresses?.[0]?.email_address || '';
+      const user = evt.data as UserJSON;
+
+      const clerkId = user.id;
+      const email = user.email_addresses?.[0]?.email_address ?? '';
+
       await convex.mutation(api.registeration.createUser, {
         clerkId,
         email,
-        role: 'resident', // default role
+        role: 'resident',
       });
-      console.log('userId:', evt.data.id)
+
+      console.log('Synced user to Convex:', clerkId);
     }
 
-    return new Response('Webhook received', { status: 200 })
+    return new Response('Webhook received', { status: 200 });
   } catch (err) {
-    console.error('Error verifying webhook:', err)
-    return new Response('Error verifying webhook', { status: 400 })
+    console.error('Webhook error:', err);
+    return new Response('Webhook failed', { status: 400 });
   }
 }
